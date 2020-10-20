@@ -60,6 +60,8 @@ public final class OIDCConfigAttributes {
 
     public static final String BACKCHANNEL_TOKEN_DELIVERY_MODE = "backchannel.token.delivery.mode";
 
+    public static final String CIBA_LOGIN_HINT_ENCODING_ENABLED = "login.hint.encoding.enabled";
+
     private OIDCConfigAttributes() {
     }
 

@@ -1,5 +1,7 @@
 package org.keycloak.crypto;
 
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
@@ -31,7 +33,7 @@ public class Aes128GcmEncryptor {
                                .putLong(uuid.getLeastSignificantBits())
                                .array();
         SecretKeySpec secretKey = new SecretKeySpec(bytes, "AES");
-        Cipher cipher = Cipher.getInstance(ALGORITHM);
+        Cipher cipher = Cipher.getInstance(ALGORITHM, new BouncyCastleProvider());
         GCMParameterSpec gcmParams = new GCMParameterSpec(AUTH_TAG_SIZE_BYTE * 8, IV);
         cipher.init(mode, secretKey, gcmParams);
         return cipher;

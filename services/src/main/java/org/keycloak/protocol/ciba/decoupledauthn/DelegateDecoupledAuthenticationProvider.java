@@ -164,7 +164,7 @@ public class DelegateDecoupledAuthenticationProvider extends DecoupledAuthentica
         defaultScopesMap.forEach((key, value)->{if (value.isDisplayOnConsentScreen()) scopeBuilder.append(value.getName()).append(" ");});
         String defaultClientScope = scopeBuilder.toString();
 
-        String userIdToBeAuthenticated = session.users().getUserByUsername(request.getLoginHint(), realm).getId();
+        String userIdToBeAuthenticated = session.users().getUserByUsername(user.getUsername(), realm).getId(); //TODO @tnorimat replace with user.getId()???
 
         DecoupledAuthId decoupledAuthIdData = new DecoupledAuthId(Time.currentTime() + expiresIn, request.getScope(),
                 userSessionIdWillBeCreated, userIdToBeAuthenticated, client.getClientId(), authResultId);
@@ -184,7 +184,7 @@ public class DelegateDecoupledAuthenticationProvider extends DecoupledAuthentica
             if (status != 200) {
                 // To terminate CIBA flow, set Auth Result as unknown
                 DecoupledAuthnResult decoupledAuthnResult = new DecoupledAuthnResult(Time.currentTime() + expiresIn, DecoupledAuthStatus.UNKNOWN);
-                DecoupledAuthnResultParser.persistDecoupledAuthnResult(session, authResultId.toString(), decoupledAuthnResult, Time.currentTime() + expiresIn);
+                DecoupledAuthnResultParser.persistDecoupledAuthnResult(session, authResultId, decoupledAuthnResult, Time.currentTime() + expiresIn);
             }
         } catch (IOException ioe) {
             throw new RuntimeException("Decoupled Authn Request URI Access failed.", ioe);

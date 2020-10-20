@@ -122,11 +122,21 @@ public class OIDCClientRepresentation {
     private String backchannel_logout_uri;
 
     private Boolean backchannel_logout_session_required;
-    
+
     private Boolean backchannel_logout_revoke_offline_tokens;
 
     // OIDC CIBA
     private String backchannel_token_delivery_mode;
+
+    private Boolean login_hint_encoding_enabled;
+
+    public Boolean getLoginHintEncodingEnabled() {
+        return this.login_hint_encoding_enabled;
+    }
+
+    public void setLoginHintEncodingEnabled(Boolean loginHintEncodingEnabled) {
+        this.login_hint_encoding_enabled = loginHintEncodingEnabled;
+    }
 
     public List<String> getRedirectUris() {
         return redirect_uris;
@@ -483,8 +493,8 @@ public class OIDCClientRepresentation {
     }
 
     public String getTlsClientAuthSubjectDn() {
-            return tls_client_auth_subject_dn;
-        }
+        return tls_client_auth_subject_dn;
+    }
 
     public void setTlsClientAuthSubjectDn(String tls_client_auth_subject_dn) {
         this.tls_client_auth_subject_dn = tls_client_auth_subject_dn;
