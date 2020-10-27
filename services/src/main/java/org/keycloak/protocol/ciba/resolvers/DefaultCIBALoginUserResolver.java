@@ -1,32 +1,29 @@
 package org.keycloak.protocol.ciba.resolvers;
 
+import org.bouncycastle.util.encoders.DecoderException;
 import org.jboss.logging.Logger;
 import org.keycloak.TokenVerifier;
 import org.keycloak.common.VerificationException;
+import org.keycloak.crypto.CibaLoginHintEncryptor;
 import org.keycloak.crypto.SignatureProvider;
 import org.keycloak.crypto.SignatureVerifierContext;
-import org.apache.commons.lang.StringUtils;
-import org.jboss.logging.Logger;
-import org.keycloak.crypto.Aes128GcmEncryptor;
-import org.keycloak.crypto.CibaLoginHintEncryptor;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.protocol.ciba.CIBAErrorCodes;
+import org.keycloak.protocol.oidc.OIDCConfigAttributes;
 import org.keycloak.representations.IDToken;
 import org.keycloak.representations.LoginHintToken;
 import org.keycloak.services.ErrorResponseException;
 import org.keycloak.services.Urls;
 
 import javax.ws.rs.core.Response;
-import org.keycloak.protocol.ciba.decoupledauthn.DelegateDecoupledAuthenticationProvider;
-import org.keycloak.protocol.oidc.OIDCConfigAttributes;
-
 import java.security.GeneralSecurityException;
 
 public class DefaultCIBALoginUserResolver implements CIBALoginUserResolver {
 
     private static final Logger logger = Logger.getLogger(DefaultCIBALoginUserResolver.class);
+    public static final String NO_USER_FOUND_MSG = "no user found";
     private final KeycloakSession session;
 
     public DefaultCIBALoginUserResolver(KeycloakSession session) {
@@ -35,24 +32,28 @@ public class DefaultCIBALoginUserResolver implements CIBALoginUserResolver {
 
     @Override
     public UserModel getUserFromLoginHint(String loginHint) {
-
-        //TNORIMATSU
-        UserModel userModel = KeycloakModelUtils.findUserByNameOrEmail(session, session.getContext().getRealm(), loginHint);
-        if (userModel == null) {
-            throw new ErrorResponseException(CIBAErrorCodes.UNKNOWN_USER_ID, "no user found", Response.Status.BAD_REQUEST);
-        }
-        return userModel;
-        //DMIEX
         String secret = session.getContext().getClient().getSecret();
-        if (session.getContext().getClient().getAttributes().get(OIDCConfigAttributes.CIBA_LOGIN_HINT_ENCODING_ENABLED)!=null && secret != null && !secret.isEmpty()) {
+        if (isCibaLoginHintEncodingEnabled() && isClientSecretValid(secret)) {
             try {
-                loginHint = CibaLoginHintEncryptor.decodeLoginHint(secret,loginHint);
-            } catch (GeneralSecurityException e) {
+                loginHint = CibaLoginHintEncryptor.decodeLoginHint(secret, loginHint);
+            } catch (GeneralSecurityException| DecoderException e) {
                 logger.error(e.getMessage());
-                throw new RuntimeException("Unable to get user by login_hint. \nError: " + e.getMessage());
+                throw new ErrorResponseException(CIBAErrorCodes.UNKNOWN_USER_ID, "Decoding login_hint Error: " + e.getMessage(), Response.Status.BAD_REQUEST);
             }
         }
-        return KeycloakModelUtils.findUserByNameOrEmail(session, session.getContext().getRealm(), loginHint);
+        UserModel userModel = KeycloakModelUtils.findUserByNameOrEmail(session, session.getContext().getRealm(), loginHint);
+        if (userModel == null) {
+            throw new ErrorResponseException(CIBAErrorCodes.UNKNOWN_USER_ID, NO_USER_FOUND_MSG, Response.Status.BAD_REQUEST);
+        }
+        return userModel;
+    }
+
+    private boolean isCibaLoginHintEncodingEnabled() {
+        return session.getContext().getClient().getAttributes().get(OIDCConfigAttributes.CIBA_LOGIN_HINT_ENCODING_ENABLED) != null;
+    }
+
+    private boolean isClientSecretValid(String secret) {
+        return secret != null && !secret.isEmpty();
     }
 
     @Override
@@ -70,7 +71,7 @@ public class DefaultCIBALoginUserResolver implements CIBALoginUserResolver {
 
             UserModel userModel = getUserFromInfoUsedByAuthentication(token.getPreferredUsername());
             if (userModel == null) {
-                throw new ErrorResponseException(CIBAErrorCodes.UNKNOWN_USER_ID, "no user found", Response.Status.BAD_REQUEST);
+                throw new ErrorResponseException(CIBAErrorCodes.UNKNOWN_USER_ID, NO_USER_FOUND_MSG, Response.Status.BAD_REQUEST);
             }
             return userModel;
         } catch (VerificationException e) {
@@ -83,9 +84,9 @@ public class DefaultCIBALoginUserResolver implements CIBALoginUserResolver {
     public UserModel getUserFromIdTokenHint(String idTokenHint) {
         try {
             TokenVerifier<IDToken> verifier = TokenVerifier.create(idTokenHint, IDToken.class)
-                                                             .realmUrl(Urls.realmIssuer(session.getContext().getUri().getBaseUri(),
-                                                                                        session.getContext().getRealm().getName()))
-                                                             .audience(session.getContext().getClient().getClientId());
+                                                      .realmUrl(Urls.realmIssuer(session.getContext().getUri().getBaseUri(),
+                                                                                 session.getContext().getRealm().getName()))
+                                                      .audience(session.getContext().getClient().getClientId());
 
             SignatureVerifierContext verifierContext = session.getProvider(SignatureProvider.class, verifier.getHeader().getAlgorithm().name()).verifier(verifier.getHeader().getKeyId());
             verifier.verifierContext(verifierContext);
@@ -94,7 +95,7 @@ public class DefaultCIBALoginUserResolver implements CIBALoginUserResolver {
 
             UserModel userModel = getUserFromInfoUsedByAuthentication(token.getPreferredUsername());
             if (userModel == null) {
-                throw new ErrorResponseException(CIBAErrorCodes.UNKNOWN_USER_ID, "no user found", Response.Status.BAD_REQUEST);
+                throw new ErrorResponseException(CIBAErrorCodes.UNKNOWN_USER_ID, NO_USER_FOUND_MSG, Response.Status.BAD_REQUEST);
             }
             return userModel;
         } catch (VerificationException e) {
