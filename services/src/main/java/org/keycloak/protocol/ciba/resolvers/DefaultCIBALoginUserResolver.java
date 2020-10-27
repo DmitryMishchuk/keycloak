@@ -1,5 +1,10 @@
 package org.keycloak.protocol.ciba.resolvers;
 
+import org.jboss.logging.Logger;
+import org.keycloak.TokenVerifier;
+import org.keycloak.common.VerificationException;
+import org.keycloak.crypto.SignatureProvider;
+import org.keycloak.crypto.SignatureVerifierContext;
 import org.apache.commons.lang.StringUtils;
 import org.jboss.logging.Logger;
 import org.keycloak.crypto.Aes128GcmEncryptor;
@@ -7,6 +12,13 @@ import org.keycloak.crypto.CibaLoginHintEncryptor;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.utils.KeycloakModelUtils;
+import org.keycloak.protocol.ciba.CIBAErrorCodes;
+import org.keycloak.representations.IDToken;
+import org.keycloak.representations.LoginHintToken;
+import org.keycloak.services.ErrorResponseException;
+import org.keycloak.services.Urls;
+
+import javax.ws.rs.core.Response;
 import org.keycloak.protocol.ciba.decoupledauthn.DelegateDecoupledAuthenticationProvider;
 import org.keycloak.protocol.oidc.OIDCConfigAttributes;
 
@@ -14,8 +26,8 @@ import java.security.GeneralSecurityException;
 
 public class DefaultCIBALoginUserResolver implements CIBALoginUserResolver {
 
-    private KeycloakSession session;
-    private static final Logger logger = Logger.getLogger(DelegateDecoupledAuthenticationProvider.class);
+    private static final Logger logger = Logger.getLogger(DefaultCIBALoginUserResolver.class);
+    private final KeycloakSession session;
 
     public DefaultCIBALoginUserResolver(KeycloakSession session) {
         this.session = session;
@@ -23,6 +35,14 @@ public class DefaultCIBALoginUserResolver implements CIBALoginUserResolver {
 
     @Override
     public UserModel getUserFromLoginHint(String loginHint) {
+
+        //TNORIMATSU
+        UserModel userModel = KeycloakModelUtils.findUserByNameOrEmail(session, session.getContext().getRealm(), loginHint);
+        if (userModel == null) {
+            throw new ErrorResponseException(CIBAErrorCodes.UNKNOWN_USER_ID, "no user found", Response.Status.BAD_REQUEST);
+        }
+        return userModel;
+        //DMIEX
         String secret = session.getContext().getClient().getSecret();
         if (session.getContext().getClient().getAttributes().get(OIDCConfigAttributes.CIBA_LOGIN_HINT_ENCODING_ENABLED)!=null && secret != null && !secret.isEmpty()) {
             try {
@@ -37,14 +57,50 @@ public class DefaultCIBALoginUserResolver implements CIBALoginUserResolver {
 
     @Override
     public UserModel getUserFromLoginHintToken(String loginHintToken) {
-        // not yet supported
-        return null;
+        try {
+            TokenVerifier<LoginHintToken> verifier = TokenVerifier.create(loginHintToken, LoginHintToken.class)
+                                                             .realmUrl(Urls.realmIssuer(session.getContext().getUri().getBaseUri(),
+                                                                                        session.getContext().getRealm().getName()))
+                                                             .audience(session.getContext().getClient().getClientId());
+
+            SignatureVerifierContext verifierContext = session.getProvider(SignatureProvider.class, verifier.getHeader().getAlgorithm().name()).verifier(verifier.getHeader().getKeyId());
+            verifier.verifierContext(verifierContext);
+
+            LoginHintToken token = verifier.verify().getToken();
+
+            UserModel userModel = getUserFromInfoUsedByAuthentication(token.getPreferredUsername());
+            if (userModel == null) {
+                throw new ErrorResponseException(CIBAErrorCodes.UNKNOWN_USER_ID, "no user found", Response.Status.BAD_REQUEST);
+            }
+            return userModel;
+        } catch (VerificationException e) {
+            logger.warn("Failed verify user hint token", e);
+            throw new ErrorResponseException(CIBAErrorCodes.INVALID_REQUEST, "Token verification failed", Response.Status.BAD_REQUEST);
+        }
     }
 
     @Override
-    public UserModel getUserFromIdTokenHint(String idToken) {
-        // not yet supported
-        return null;
+    public UserModel getUserFromIdTokenHint(String idTokenHint) {
+        try {
+            TokenVerifier<IDToken> verifier = TokenVerifier.create(idTokenHint, IDToken.class)
+                                                             .realmUrl(Urls.realmIssuer(session.getContext().getUri().getBaseUri(),
+                                                                                        session.getContext().getRealm().getName()))
+                                                             .audience(session.getContext().getClient().getClientId());
+
+            SignatureVerifierContext verifierContext = session.getProvider(SignatureProvider.class, verifier.getHeader().getAlgorithm().name()).verifier(verifier.getHeader().getKeyId());
+            verifier.verifierContext(verifierContext);
+
+            IDToken token = verifier.verify().getToken();
+
+            UserModel userModel = getUserFromInfoUsedByAuthentication(token.getPreferredUsername());
+            if (userModel == null) {
+                throw new ErrorResponseException(CIBAErrorCodes.UNKNOWN_USER_ID, "no user found", Response.Status.BAD_REQUEST);
+            }
+            return userModel;
+        } catch (VerificationException e) {
+            logger.warn("Failed verify id token", e);
+            throw new ErrorResponseException(CIBAErrorCodes.INVALID_REQUEST, "Token verification failed", Response.Status.BAD_REQUEST);
+        }
     }
 
     @Override

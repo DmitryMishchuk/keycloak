@@ -128,6 +128,8 @@ public class OIDCClientRepresentation {
     // OIDC CIBA
     private String backchannel_token_delivery_mode;
 
+    private Boolean backchannel_user_code_parameter;
+
     private Boolean login_hint_encoding_enabled;
 
     public Boolean getLoginHintEncodingEnabled() {
@@ -506,5 +508,13 @@ public class OIDCClientRepresentation {
 
     public void setBackchannelTokenDeliveryMode(String backchannel_token_delivery_mode) {
         this.backchannel_token_delivery_mode = backchannel_token_delivery_mode;
+    }
+
+    public Boolean getBackchannelUserCodeParameter() {
+        return backchannel_user_code_parameter;
+    }
+
+    public void setBackchannelUserCodeParameter(Boolean backchannel_user_code_parameter) {
+        this.backchannel_user_code_parameter = backchannel_user_code_parameter;
     }
 }
