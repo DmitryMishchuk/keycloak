@@ -45,9 +45,6 @@ import org.junit.Test;
 import org.keycloak.OAuth2Constants;
 import org.keycloak.OAuthErrorException;
 import org.keycloak.admin.client.resource.ClientResource;
-import org.keycloak.admin.client.resource.ClientScopeResource;
-import org.keycloak.admin.client.resource.ClientScopesResource;
-import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.authentication.authenticators.client.ClientIdAndSecretAuthenticator;
 import org.keycloak.authentication.authenticators.client.JWTClientAuthenticator;
 import org.keycloak.authentication.authenticators.client.JWTClientSecretAuthenticator;
@@ -62,8 +59,6 @@ import org.keycloak.crypto.Algorithm;
 import org.keycloak.events.Details;
 import org.keycloak.events.Errors;
 import org.keycloak.events.EventType;
-import org.keycloak.events.admin.OperationType;
-import org.keycloak.events.admin.ResourceType;
 import org.keycloak.models.AdminRoles;
 import org.keycloak.models.Constants;
 import org.keycloak.protocol.oidc.OIDCAdvancedConfigWrapper;
@@ -74,7 +69,6 @@ import org.keycloak.representations.RefreshToken;
 import org.keycloak.representations.idm.ClientInitialAccessCreatePresentation;
 import org.keycloak.representations.idm.ClientInitialAccessPresentation;
 import org.keycloak.representations.idm.ClientRepresentation;
-import org.keycloak.representations.idm.ClientScopeRepresentation;
 import org.keycloak.representations.idm.ComponentRepresentation;
 import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.EventRepresentation;
@@ -94,6 +88,7 @@ import org.keycloak.services.clientpolicy.condition.UpdatingClientSourceConditio
 import org.keycloak.services.clientpolicy.condition.UpdatingClientSourceGroupsConditionFactory;
 import org.keycloak.services.clientpolicy.condition.UpdatingClientSourceHostsConditionFactory;
 import org.keycloak.services.clientpolicy.condition.UpdatingClientSourceRolesConditionFactory;
+import org.keycloak.services.clientpolicy.condition.ClientDomainNameConditionFactory;
 import org.keycloak.services.clientpolicy.executor.ClientPolicyExecutorProvider;
 import org.keycloak.services.clientpolicy.executor.PKCEEnforceExecutorFactory;
 import org.keycloak.services.clientpolicy.executor.SecureClientAuthEnforceExecutorFactory;
@@ -106,7 +101,6 @@ import org.keycloak.testsuite.AssertEvents;
 import org.keycloak.testsuite.admin.ApiUtil;
 import org.keycloak.testsuite.arquillian.annotation.EnableFeature;
 import org.keycloak.testsuite.services.clientpolicy.condition.TestRaiseExeptionConditionFactory;
-import org.keycloak.testsuite.util.AdminEventPaths;
 import org.keycloak.testsuite.util.OAuthClient;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -663,6 +657,40 @@ public class ClientPolicyBasicsTest extends AbstractKeycloakTest {
     }
 
     @Test
+    public void testClientDomainNameCondition() throws ClientPolicyException {
+        String policyName = "MyPolicy";
+        createPolicy(policyName, DefaultClientPolicyProviderFactory.PROVIDER_ID, null, null, null);
+        logger.info("... Created Policy : " + policyName);
+
+        createCondition("ClientDomainNameCondition", ClientDomainNameConditionFactory.PROVIDER_ID, null, (ComponentRepresentation provider) -> {
+            setConditionClientDomainName(provider, new ArrayList<>(Collections.singletonList("127.0.0.1")));
+        });
+        registerCondition("ClientDomainNameCondition", policyName);
+        logger.info("... Registered Condition : ClientDomainNameCondition");
+
+        createExecutor("PKCEEnforceExecutor", PKCEEnforceExecutorFactory.PROVIDER_ID, null, this::setExecutorAugmentDeactivate);
+        registerExecutor("PKCEEnforceExecutor", policyName);
+        logger.info("... Registered Executor : PKCEEnforceExecutor");
+
+        String clientId = "Zahlungs-App";
+        String clientSecret = "secret";
+        String cid = createClientByAdmin(clientId, (ClientRepresentation clientRep) -> {
+            clientRep.setSecret(clientSecret);
+        });
+
+        try {
+            failTokenRequestByNotFollowingPKCE(clientId, clientSecret);
+
+            deleteExecutor("PKCEEnforceExecutor", policyName);
+            logger.info("... Deleted Executor : PKCEEnforceExecutor");
+
+            successfulLoginAndLogout(clientId, clientSecret);
+        } finally {
+            deleteClientByAdmin(cid);
+        }
+    }
+
+    @Test
     public void testSecureSessionEnforceExecutor() throws ClientRegistrationException, ClientPolicyException {
         String policyBetaName = "MyPolicy-beta";
         createPolicy(policyBetaName, DefaultClientPolicyProviderFactory.PROVIDER_ID, null, null, null);
@@ -794,11 +822,11 @@ public class ClientPolicyBasicsTest extends AbstractKeycloakTest {
                 assertEquals(Errors.INVALID_REGISTRATION, e.getMessage());
             }
 
-           try {
+            try {
                 updateClientDynamically(clientId, (OIDCClientRepresentation clientRep) -> {
                     clientRep.setIdTokenSignedResponseAlg(Algorithm.RS256);
                 });
-               fail();
+                fail();
             } catch (ClientRegistrationException e) {
                 assertEquals("Failed to send request", e.getMessage());
             }
@@ -940,7 +968,8 @@ public class ClientPolicyBasicsTest extends AbstractKeycloakTest {
         try {
             try {
                 authCreateClients();
-                createClientDynamically("Gourmet-App", (OIDCClientRepresentation clientRep) -> {});
+                createClientDynamically("Gourmet-App", (OIDCClientRepresentation clientRep) -> {
+                });
                 fail();
             } catch (ClientRegistrationException e) {
                 assertEquals("Failed to send request", e.getMessage());
@@ -976,7 +1005,8 @@ public class ClientPolicyBasicsTest extends AbstractKeycloakTest {
         try {
             try {
                 authCreateClients();
-                createClientDynamically("Gourmet-App", (OIDCClientRepresentation clientRep) -> {});
+                createClientDynamically("Gourmet-App", (OIDCClientRepresentation clientRep) -> {
+                });
                 fail();
             } catch (ClientRegistrationException e) {
                 assertEquals("Failed to send request", e.getMessage());
@@ -1214,7 +1244,7 @@ public class ClientPolicyBasicsTest extends AbstractKeycloakTest {
         assertEquals(true, rep.isActive());
         assertEquals(clientId, rep.getClientId());
         assertEquals(clientId, rep.getIssuedFor());
-        events.expect(EventType.INTROSPECT_TOKEN).client(clientId).user((String)null).clearDetails().assertEvent();
+        events.expect(EventType.INTROSPECT_TOKEN).client(clientId).user((String) null).clearDetails().assertEvent();
     }
 
     private void doTokenRevoke(String refreshToken, String clientId, String clientSecret, String userId, boolean isOfflineAccess) throws IOException {
@@ -1357,8 +1387,8 @@ public class ClientPolicyBasicsTest extends AbstractKeycloakTest {
         ComponentRepresentation policy = getPolicy(policyName);
         List<String> conditionIds = policy.getConfig().get(DefaultClientPolicyProviderFactory.CONDITION_IDS);
         List<String> executorIds = policy.getConfig().get(DefaultClientPolicyProviderFactory.EXECUTOR_IDS);
-        conditionIds.stream().forEach(i->adminClient.realm(REALM_NAME).components().component(i).remove());
-        executorIds.stream().forEach(i->adminClient.realm(REALM_NAME).components().component(i).remove());
+        conditionIds.stream().forEach(i -> adminClient.realm(REALM_NAME).components().component(i).remove());
+        executorIds.stream().forEach(i -> adminClient.realm(REALM_NAME).components().component(i).remove());
         adminClient.realm(REALM_NAME).components().component(policy.getId()).remove();
     }
 
@@ -1434,6 +1464,10 @@ public class ClientPolicyBasicsTest extends AbstractKeycloakTest {
 
     private void setConditionClientIpAddress(ComponentRepresentation provider, List<String> clientIpAddresses) {
         provider.getConfig().put(ClientIpAddressConditionFactory.IPADDR, clientIpAddresses);
+    }
+
+    private void setConditionClientDomainName(ComponentRepresentation provider, List<String> clientDomainNames) {
+        provider.getConfig().put(ClientDomainNameConditionFactory.CDN, clientDomainNames);
     }
 
     private void setConditionClientScopes(ComponentRepresentation provider, List<String> clientScopes) {
