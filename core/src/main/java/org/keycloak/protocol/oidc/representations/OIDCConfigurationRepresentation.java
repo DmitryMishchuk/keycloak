@@ -127,6 +127,12 @@ public class OIDCConfigurationRepresentation {
     @JsonProperty("tls_client_certificate_bound_access_tokens")
     private Boolean tlsClientCertificateBoundAccessTokens;
 
+    @JsonProperty("tls_client_certificate_extended_verification")
+    private Boolean tlsClientCertificateExtendedValidation;
+
+    @JsonProperty("tls_client_certificate_extended_verification_impl")
+    private String tlsClientCertificateExtendedValidationImplementation;
+
     @JsonProperty("revocation_endpoint")
     private String revocationEndpoint;
 
@@ -444,5 +450,21 @@ public class OIDCConfigurationRepresentation {
     @JsonAnySetter
     public void setOtherClaims(String name, Object value) {
         otherClaims.put(name, value);
+    }
+
+    public Boolean getTlsClientCertificateExtendedValidation() {
+        return tlsClientCertificateExtendedValidation;
+    }
+
+    public void setTlsClientCertificateExtendedValidation(Boolean tlsClientCertificateExtendedValidation) {
+        this.tlsClientCertificateExtendedValidation = tlsClientCertificateExtendedValidation;
+    }
+
+    public String getTlsClientCertificateExtendedValidationImplementation() {
+        return tlsClientCertificateExtendedValidationImplementation;
+    }
+
+    public void setTlsClientCertificateExtendedValidationImplementation(String tlsClientCertificateExtendedValidationImplementation) {
+        this.tlsClientCertificateExtendedValidationImplementation = tlsClientCertificateExtendedValidationImplementation;
     }
 }

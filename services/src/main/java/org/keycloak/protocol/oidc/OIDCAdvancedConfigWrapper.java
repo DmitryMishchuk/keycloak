@@ -131,6 +131,24 @@ public class OIDCAdvancedConfigWrapper {
         setAttribute(OIDCConfigAttributes.USE_MTLS_HOK_TOKEN, val);
     }
 
+    public boolean isUseMtlsExtendedValidation() {
+        String useMtlsExtendedValidation = getAttribute(OIDCConfigAttributes.USE_MTLS_EXTENDED_VALIDATION);
+        return Boolean.parseBoolean(useMtlsExtendedValidation);
+    }
+
+    public void setUseMtlsExtendedValidation(boolean useMtlsExtendedValidation) {
+        String val = String.valueOf(useMtlsExtendedValidation);
+        setAttribute(OIDCConfigAttributes.USE_MTLS_EXTENDED_VALIDATION, val);
+    }
+
+    public String getMtlsExtendedValidationImpl(){
+        return getAttribute(OIDCConfigAttributes.USE_MTLS_EXTENDED_VALIDATION_IMPL);
+    }
+
+    public void setMtlsExtendedValidationImpl(String mtlsExtendedValidationImpl){
+        setAttribute(OIDCConfigAttributes.USE_MTLS_EXTENDED_VALIDATION, mtlsExtendedValidationImpl);
+    }
+
     /**
      * If true, then Client Credentials Grant generates refresh token and creates user session. This is not per specs, so it is false by default
      * For the details @see https://tools.ietf.org/html/rfc6749#section-4.4.3

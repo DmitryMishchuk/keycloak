@@ -127,6 +127,12 @@ public class DescriptionConverter {
             else configWrapper.setUseMtlsHoKToken(false);
         }
 
+        boolean tlsClientCertificateExtendedValidation = configWrapper.isUseMtlsHokToken()&&clientOIDC.getTls_client_certificate_extended_validation();
+        configWrapper.setUseMtlsExtendedValidation(tlsClientCertificateExtendedValidation);
+
+        String tlsClientCertificateExtendedValidationImpl = clientOIDC.getTls_client_certificate_extended_validation_impl();
+        configWrapper.setMtlsExtendedValidationImpl(tlsClientCertificateExtendedValidationImpl);
+
         if (clientOIDC.getTlsClientAuthSubjectDn() != null) {
             configWrapper.setTlsClientAuthSubjectDn(clientOIDC.getTlsClientAuthSubjectDn());
         }
@@ -246,6 +252,10 @@ public class DescriptionConverter {
         } else {
             response.setTlsClientCertificateBoundAccessTokens(Boolean.FALSE);
         }
+
+        response.setTls_client_certificate_extended_validation(config.isUseMtlsExtendedValidation());
+        response.setTls_client_certificate_extended_validation_impl(config.getMtlsExtendedValidationImpl());
+
         if (config.getTlsClientAuthSubjectDn() != null) {
             response.setTlsClientAuthSubjectDn(config.getTlsClientAuthSubjectDn());
         }
