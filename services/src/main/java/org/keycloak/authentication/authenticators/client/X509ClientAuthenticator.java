@@ -7,6 +7,7 @@ import org.keycloak.authentication.ClientAuthenticationFlowContext;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.ClientModel;
 import org.keycloak.mtls.MtlsExtendedValidationProvider;
+import org.keycloak.protocol.oidc.OIDCConfigAttributes;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.provider.ProviderFactory;
@@ -131,10 +132,9 @@ public class X509ClientAuthenticator extends AbstractClientAuthenticator {
             logger.debug("[X509ClientCertificateAuthenticator:authenticate] Matched " + matchedCertificate.get() + " certificate.");
         }
 
-        boolean mtlsExtendedValidationEnabled = Boolean.parseBoolean(client.getAttribute("tls.client.certificate.extended.validation"));
-        MtlsExtendedValidationProvider mtlsExtendedValidationProvider = getMtlsExtendedValidationProvider(mtlsExtendedValidationEnabled, context, client);
-
+        boolean mtlsExtendedValidationEnabled = Boolean.parseBoolean(client.getAttribute(OIDCConfigAttributes.USE_MTLS_EXTENDED_VALIDATION));
         if (mtlsExtendedValidationEnabled) {
+            MtlsExtendedValidationProvider mtlsExtendedValidationProvider = getMtlsExtendedValidationProvider(mtlsExtendedValidationEnabled, context, client);
             Map<String,String> additionalDetails = mtlsExtendedValidationProvider.parseAdditionalFields(certs);
             additionalDetails.forEach((k,v)->{
                 context.getEvent().detail(k, v);
@@ -199,7 +199,7 @@ public class X509ClientAuthenticator extends AbstractClientAuthenticator {
         if (!mtlsExtendedValidationEnabled) {
             return null;
         } else {
-            String requiredProviderId = client.getAttribute("tls.client.certificate.extended.validation.impl");
+            String requiredProviderId = client.getAttribute(OIDCConfigAttributes.USE_MTLS_EXTENDED_VALIDATION_IMPL);
             ProviderFactory<MtlsExtendedValidationProvider> factory = context.getSession().getKeycloakSessionFactory()
                                                                               .getProviderFactoriesStream(MtlsExtendedValidationProvider.class)
                                                                               .filter(f -> f.getId().equals(requiredProviderId)).findFirst()

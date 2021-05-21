@@ -100,9 +100,6 @@ public class OIDCClientRepresentation {
     // https://tools.ietf.org/html/draft-ietf-oauth-mtls-08#section-6.5
     private Boolean tls_client_certificate_bound_access_tokens;
 
-    private Boolean tls_client_certificate_extended_validation;
-    private String tls_client_certificate_extended_validation_impl;
-
     private String tls_client_auth_subject_dn;
 
     // OIDC Session Management
@@ -490,19 +487,4 @@ public class OIDCClientRepresentation {
         this.tls_client_auth_subject_dn = tls_client_auth_subject_dn;
     }
 
-    public Boolean getTls_client_certificate_extended_validation() {
-        return tls_client_certificate_extended_validation;
-    }
-
-    public void setTls_client_certificate_extended_validation(Boolean tls_client_certificate_extended_validation) {
-        this.tls_client_certificate_extended_validation = tls_client_certificate_extended_validation;
-    }
-
-    public String getTls_client_certificate_extended_validation_impl() {
-        return tls_client_certificate_extended_validation_impl;
-    }
-
-    public void setTls_client_certificate_extended_validation_impl(String tls_client_certificate_extended_validation_impl) {
-        this.tls_client_certificate_extended_validation_impl = tls_client_certificate_extended_validation_impl;
-    }
 }
