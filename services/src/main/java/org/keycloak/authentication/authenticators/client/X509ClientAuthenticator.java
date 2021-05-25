@@ -7,6 +7,7 @@ import org.keycloak.authentication.ClientAuthenticationFlowContext;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.ClientModel;
 import org.keycloak.mtls.MtlsExtendedValidationProvider;
+import org.keycloak.mtls.MtlsValidationException;
 import org.keycloak.protocol.oidc.OIDCConfigAttributes;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.provider.ProviderConfigProperty;
@@ -139,7 +140,13 @@ public class X509ClientAuthenticator extends AbstractClientAuthenticator {
             additionalDetails.forEach((k,v)->{
                 context.getEvent().detail(k, v);
             });
-            mtlsExtendedValidationProvider.performAdditionalValidation(certs);
+            try {
+                mtlsExtendedValidationProvider.performAdditionalValidation(certs);
+            } catch (MtlsValidationException e) {
+                logger.debug("[X509ClientCertificateAuthenticator:authenticate] There were errors during extended certificate validation: "+e.getValidationFailureCause());
+                context.attempted();
+                return;
+            }
         }
 
         context.success();

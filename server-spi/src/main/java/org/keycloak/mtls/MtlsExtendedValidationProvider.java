@@ -9,5 +9,5 @@ public interface MtlsExtendedValidationProvider extends Provider {
 
     Map<String, String> parseAdditionalFields(X509Certificate[] certs);
 
-    void performAdditionalValidation(X509Certificate[] certs);
+    void performAdditionalValidation(X509Certificate[] certs) throws MtlsValidationException;
 }
